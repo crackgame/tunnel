@@ -12,38 +12,30 @@ func Run(host string, tunnelPort int, innerPort int) {
 }
 
 func runForInnerClient(port int) {
-	// addr := fmt.Sprintf(":%v", port)
-	// tcpAddr, err := net.ResolveTCPAddr("tcp4", addr) //获取一个tcpAddr
-	// utils.CheckError(err)
-	// listener, err := net.ListenTCP("tcp", tcpAddr) //监听一个端口
-	// utils.CheckError(err)
-	// fmt.Println("listen for user on", addr)
-	// for {
-	// 	conn, err := listener.Accept()
-	// 	if err != nil {
-	// 		continue
-	// 	}
+	innerAddr := fmt.Sprintf("%v:%v", "127.0.0.1", port)
+	fmt.Println("connect", innerAddr)
+	conn, err := net.Dial("tcp", innerAddr)
+	utils.CheckError(err)
 
-	// 	user.sessionForUser = NewSession(conn)
+	user.sessionForInner = NewSession(conn)
+	go user.sessionForInner.SendLoop()
 
-	// 	for {
-	// 		var recv []byte = make([]byte, 10240)
-	// 		n, err := conn.Read(recv)
-	// 		if err != nil {
-	// 			conn.Close()
-	// 			continue
-	// 		}
+	go func() {
+		for {
+			recv := make([]byte, 10240)
+			n, err := conn.Read(recv)
+			utils.CheckError(err)
 
-	// 		if user.sessionForTunnel == nil {
-	// 			fmt.Println("tunnel is not conneted")
-	// 			continue
-	// 		}
+			if user.sessionForTunnel == nil {
+				fmt.Println("tunnel is not conneted")
+				continue
+			}
 
-	// 		fmt.Println("aaaa", n)
-	// 	}
-	// 	//conn.Write([]byte(daytime))
-	// 	//conn.Close()
-	// }
+			user.sessionForTunnel.send <- recv[:n]
+
+			fmt.Println("recv data from inner, len is", n)
+		}
+	}()
 }
 
 func runForTunnelClient(host string, port int, innerPort int) {
@@ -53,43 +45,22 @@ func runForTunnelClient(host string, port int, innerPort int) {
 	utils.CheckError(err)
 	defer conn.Close()
 
-	var connForInner net.Conn
+	user.sessionForTunnel = NewSession(conn)
+	go user.sessionForTunnel.SendLoop()
 
 	for {
-		var recv []byte = make([]byte, 10240)
+		recv := make([]byte, 10240)
 		n, err := conn.Read(recv)
 		utils.CheckError(err)
 
 		// 如果收到数据，连接内网指定端口，打通通道
-		if connForInner == nil {
-			innerAddr := fmt.Sprintf("%v:%v", "127.0.0.1", innerPort)
-			fmt.Println("connect", innerAddr)
-			connForInner, err = net.Dial("tcp", innerAddr)
-			utils.CheckError(err)
+		if user.sessionForInner == nil {
+			runForInnerClient(innerPort)
 		}
 
 		// 写入接收到的数据到本地端口
-		connForInner.Write(recv[:n])
+		user.sessionForInner.send <- recv[:n]
 
-		fmt.Println("aaaa", n)
+		fmt.Println("recv data from tunnel, len is", n)
 	}
-
-	// tcpAddr, err := net.ResolveTCPAddr("tcp4", addr) //获取一个tcpAddr
-	// utils.CheckError(err)
-	// listener, err := net.ListenTCP("tcp", tcpAddr) //监听一个端口
-	// utils.CheckError(err)
-	// fmt.Println("listen for tunnel on", addr)
-	// for {
-	// 	conn, err := listener.Accept()
-	// 	if err != nil {
-	// 		continue
-	// 	}
-
-	// 	user.sessionForTunnel = NewSession(conn)
-
-	// 	daytime := time.Now().String()
-	// 	fmt.Println("bbbb")
-	// 	conn.Write([]byte(daytime))
-	// 	conn.Close()
-	// }
 }
