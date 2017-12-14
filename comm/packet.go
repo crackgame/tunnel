@@ -36,25 +36,24 @@ func (p *Packet) Len() int {
 	return len(p.Data)
 }
 
-func encode(pkg *Packet) []byte {
-	var network bytes.Buffer
-	enc := gob.NewEncoder(&network)
-	err := enc.Encode(pkg)
+func encode(data interface{}) []byte {
+	buf := bytes.NewBuffer(nil)
+	enc := gob.NewEncoder(buf)
+	err := enc.Encode(data)
 	if err != nil {
-		fmt.Println("encode fail", err)
+		fmt.Println("gob encode fail", err)
 	}
-	return network.Bytes()
+	return buf.Bytes()
 }
 
-func decode([]byte) *Packet {
-	var rv Packet
-	var network bytes.Buffer
-	enc := gob.NewDecoder(&network)
-	err := enc.Decode(&rv)
+func decode(data []byte, to interface{}) error {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	err := dec.Decode(to)
 	if err != nil {
-		fmt.Println("decode fail", err)
+		fmt.Println("gob decode fail", err)
 	}
-	return &rv
+	return err
 }
 
 // EncodePacket 包含大小字段
@@ -83,6 +82,8 @@ func DecodePacket(conn net.Conn) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg := decode(bs)
-	return pkg, nil
+
+	pkg := &Packet{}
+	err = decode(bs, pkg)
+	return pkg, err
 }

@@ -86,6 +86,7 @@ func (s *Session) SendData(data []byte) {
 
 func (s *Session) SendPacket(pkg *comm.Packet) {
 	data := comm.EncodePacket(pkg)
+	fmt.Println("send data to tunnel", data)
 	s.SendData(data)
 }
 
