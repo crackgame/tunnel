@@ -73,7 +73,7 @@ func runForTunnel(port int) {
 				fmt.Println("runForTunnel, unknow packet cmdID", pkg.CmdID)
 			}
 
-			fmt.Println("recv data from tunnel, len is", pkg.Len())
+			fmt.Printf("recv data from tunnel user(%v), len is %v\n", user.id, pkg.Len())
 		}
 	}
 }
