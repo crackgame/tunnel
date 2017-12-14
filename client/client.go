@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net"
+	"tunnel/comm"
 	"tunnel/utils"
 )
 
@@ -20,9 +21,10 @@ func runForInnerClient(port int) {
 	user.sessionForInner = NewSession(conn)
 	go user.sessionForInner.SendLoop()
 
+	// 开线程跑接收
 	go func() {
 		for {
-			recv := make([]byte, 10240)
+			recv := make([]byte, comm.RecvBuffSize)
 			n, err := conn.Read(recv)
 			utils.CheckError(err)
 
@@ -49,7 +51,7 @@ func runForTunnelClient(host string, port int, innerPort int) {
 	go user.sessionForTunnel.SendLoop()
 
 	for {
-		recv := make([]byte, 10240)
+		recv := make([]byte, comm.RecvBuffSize)
 		n, err := conn.Read(recv)
 		utils.CheckError(err)
 

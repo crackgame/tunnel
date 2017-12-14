@@ -2,7 +2,9 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"net"
+	"tunnel/comm"
 	"tunnel/utils"
 )
 
@@ -13,9 +15,9 @@ func Run(userPort int, tunnelPort int) {
 
 func runForUser(port int) {
 	addr := fmt.Sprintf(":%v", port)
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", addr) //获取一个tcpAddr
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", addr)
 	utils.CheckError(err)
-	listener, err := net.ListenTCP("tcp", tcpAddr) //监听一个端口
+	listener, err := net.ListenTCP("tcp", tcpAddr)
 	utils.CheckError(err)
 	fmt.Println("listen for user on", addr)
 	for {
@@ -24,27 +26,9 @@ func runForUser(port int) {
 			continue
 		}
 
-		user.sessionForUser = NewSession(conn)
-		go user.sessionForUser.SendLoop()
-
-		for {
-			recv := make([]byte, 10240)
-			n, err := conn.Read(recv)
-			if err != nil {
-				conn.Close()
-				continue
-			}
-
-			if user.sessionForTunnel == nil {
-				fmt.Println("tunnel is not conneted")
-				continue
-			}
-
-			// 推入通道的发送数据队列
-			user.sessionForTunnel.send <- recv[:n]
-
-			fmt.Println("recv data from user, len is", n)
-		}
+		user := NewUser(conn)
+		AddUser(user) // add user to cache
+		user.Run()
 	}
 }
 
@@ -61,26 +45,43 @@ func runForTunnel(port int) {
 			continue
 		}
 
-		user.sessionForTunnel = NewSession(conn)
-		go user.sessionForTunnel.SendLoop()
+		sessionForTunnel = NewSession(conn)
+		go sessionForTunnel.sendLoop()
 
 		for {
-			recv := make([]byte, 10240)
-			n, err := conn.Read(recv)
+			// read pakcet len
+			headerLen, err := utils.ReadInt32(conn)
 			if err != nil {
 				conn.Close()
-				continue
+				break
 			}
 
-			if user.sessionForUser == nil {
-				fmt.Println("tunnel is not conneted")
-				continue
+			// read packet data
+			bs := make([]byte, headerLen)
+			_, err = io.ReadFull(conn, bs)
+			if err != nil {
+				conn.Close()
+				break
+			}
+			pkg := comm.Decode(bs)
+
+			user := FindUser(pkg.UserID)
+			if user == nil {
+				fmt.Println("not found user", pkg.UserID)
+				break
 			}
 
 			// 推入从通道的接收到的数据给用户队列
-			user.sessionForUser.send <- recv[:n]
+			switch pkg.CmdID {
+			case comm.Cmd_Data:
+				user.session.send <- pkg.Data
+			case comm.Cmd_Close:
+				user.Disconnect()
+			default:
+				fmt.Println("runForTunnel, unknow packet cmdID", pkg.CmdID)
+			}
 
-			fmt.Println("recv data from tunnel, len is", n)
+			fmt.Println("recv data from tunnel, len is", pkg.Len())
 		}
 	}
 }
