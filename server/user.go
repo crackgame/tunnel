@@ -56,11 +56,11 @@ func (u *User) recvLoop() {
 			continue
 		}
 
+		fmt.Printf("recv data from user(%v), len is %v\n", u.id, n)
+
 		// 推入通道的发送数据队列
 		pkg := comm.NewPacket(u.id, comm.Cmd_Data, recv[:n])
 		sessionForTunnel.SendPacket(pkg)
-
-		fmt.Println("recv data from user, len is", n)
 	}
 }
 

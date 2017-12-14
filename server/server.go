@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"tunnel/comm"
 	"tunnel/utils"
@@ -51,21 +50,12 @@ func runForTunnel(port int) {
 		fmt.Println("client connect tunnel success!")
 
 		for {
-			// read pakcet len
-			headerLen, err := utils.ReadInt32(conn)
+			// read packect
+			pkg, err := DecodePacket(conn)
 			if err != nil {
 				conn.Close()
 				break
 			}
-
-			// read packet data
-			bs := make([]byte, headerLen)
-			_, err = io.ReadFull(conn, bs)
-			if err != nil {
-				conn.Close()
-				break
-			}
-			pkg := comm.Decode(bs)
 
 			user := FindUser(pkg.UserID)
 			if user == nil {
