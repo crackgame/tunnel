@@ -50,6 +50,8 @@ func runForTunnelClient(host string, port int, innerPort int) {
 		}
 		pkg := comm.Decode(bs)
 
+		fmt.Println("tunnel recv packet", pkg)
+
 		switch pkg.CmdID {
 		case comm.Cmd_Connect:
 			runForInnerClient(pkg.UserID, innerPort)
