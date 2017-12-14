@@ -74,7 +74,7 @@ func runForTunnel(port int) {
 			// 推入从通道的接收到的数据给用户队列
 			switch pkg.CmdID {
 			case comm.Cmd_Data:
-				user.session.send <- pkg.Data
+				user.session.SendData(pkg.Data)
 			case comm.Cmd_Close:
 				user.Disconnect()
 			default:

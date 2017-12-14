@@ -79,14 +79,13 @@ func NewSession(conn net.Conn) *Session {
 	}
 }
 
+func (s *Session) SendData(data []byte) {
+	s.send <- data
+}
+
 func (s *Session) SendPacket(pkg *comm.Packet) {
 	data := comm.Encode(pkg)
-	if sessionForTunnel == nil {
-		fmt.Println("tunnel is not opened", *pkg)
-		return
-	}
-
-	sessionForTunnel.send <- data
+	s.SendData(data)
 }
 
 func (s *Session) sendLoop() {
