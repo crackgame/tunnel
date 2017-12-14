@@ -28,6 +28,6 @@ func ReadInt32(conn net.Conn) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	headerLen := int(binary.LittleEndian.Uint16(bs))
+	headerLen := int(binary.LittleEndian.Uint32(bs))
 	return headerLen, nil
 }
