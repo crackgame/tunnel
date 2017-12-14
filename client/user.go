@@ -44,7 +44,8 @@ func (u *User) recvLoop() {
 			continue
 		}
 
-		sessionForTunnel.send <- recv[:n]
+		pkg := comm.NewPacket(u.id, comm.Cmd_Data, recv[:n])
+		sessionForTunnel.SendPacket(pkg)
 
 		fmt.Println("recv data from inner, len is", n)
 	}
