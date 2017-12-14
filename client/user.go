@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"net"
-	"os"
 	"tunnel/comm"
 	"tunnel/utils"
 )
@@ -21,6 +20,7 @@ func NewUser(userID int, conn net.Conn) *User {
 }
 
 func (u *User) Run() {
+	u.onConnect()
 	go u.recvLoop()
 	go u.session.sendLoop()
 }
@@ -30,12 +30,25 @@ func (u *User) Disconnect() {
 	u.session.conn.Close()
 }
 
+func (u *User) onConnect() {
+	// nothing
+	fmt.Println("onConnect user", u.id)
+}
+
+func (u *User) onClose() {
+	pkg := comm.NewPacket(u.id, comm.Cmd_Close, []byte{})
+	sessionForTunnel.SendPacket(pkg)
+}
+
 func (u *User) recvLoop() {
 	for {
 		recv := make([]byte, comm.RecvBuffSize)
 		n, err := u.session.conn.Read(recv)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
+			//u.onClose() // have bug
+			RemoveUser(u.id)
+			u.session.conn.Close()
+			//fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
 			break
 		}
 
