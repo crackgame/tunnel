@@ -85,7 +85,7 @@ func (s *Session) SendData(data []byte) {
 }
 
 func (s *Session) SendPacket(pkg *comm.Packet) {
-	data := comm.Encode(pkg)
+	data := comm.EncodePacket(pkg)
 	s.SendData(data)
 }
 
