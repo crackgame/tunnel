@@ -26,6 +26,7 @@ func (u *User) Run() {
 }
 
 func (u *User) Disconnect() {
+	fmt.Println("disconnect user", u.id)
 	u.session.conn.Close()
 }
 

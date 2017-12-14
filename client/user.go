@@ -1,14 +1,57 @@
 package client
 
 import (
+	"fmt"
 	"net"
+	"os"
+	"tunnel/comm"
 	"tunnel/utils"
 )
 
 type User struct {
-	sessionForInner  *Session
-	sessionForTunnel *Session
+	id      int
+	session *Session
 }
+
+func NewUser(userID int, conn net.Conn) *User {
+	return &User{
+		id:      userID,
+		session: NewSession(conn),
+	}
+}
+
+func (u *User) Run() {
+	go u.recvLoop()
+	go u.session.sendLoop()
+}
+
+func (u *User) Disconnect() {
+	fmt.Println("disconnect user", u.id)
+	u.session.conn.Close()
+}
+
+func (u *User) recvLoop() {
+	for {
+		recv := make([]byte, comm.RecvBuffSize)
+		n, err := u.session.conn.Read(recv)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
+			break
+		}
+
+		if sessionForTunnel == nil {
+			fmt.Println("tunnel is not conneted")
+			continue
+		}
+
+		sessionForTunnel.send <- recv[:n]
+
+		fmt.Println("recv data from inner, len is", n)
+	}
+}
+
+//////////////////////////////
+// session
 
 type Session struct {
 	conn net.Conn
@@ -24,11 +67,20 @@ func NewSession(conn net.Conn) *Session {
 	}
 }
 
-func (s *Session) SendLoop() {
+func (s *Session) SendData(data []byte) {
+	s.send <- data
+}
+
+func (s *Session) SendPacket(pkg *comm.Packet) {
+	data := comm.Encode(pkg)
+	s.SendData(data)
+}
+
+func (s *Session) sendLoop() {
 	for {
 		data := <-s.send
 		utils.WriteFull(s.conn, data)
 	}
 }
 
-var user User
+var sessionForTunnel *Session

@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"tunnel/comm"
 	"tunnel/utils"
@@ -9,35 +10,17 @@ import (
 
 func Run(host string, tunnelPort int, innerPort int) {
 	runForTunnelClient(host, tunnelPort, innerPort)
-	runForInnerClient(innerPort)
 }
 
-func runForInnerClient(port int) {
+func runForInnerClient(userID int, port int) {
 	innerAddr := fmt.Sprintf("%v:%v", "127.0.0.1", port)
 	fmt.Println("connect", innerAddr)
 	conn, err := net.Dial("tcp", innerAddr)
 	utils.CheckError(err)
 
-	user.sessionForInner = NewSession(conn)
-	go user.sessionForInner.SendLoop()
-
-	// 开线程跑接收
-	go func() {
-		for {
-			recv := make([]byte, comm.RecvBuffSize)
-			n, err := conn.Read(recv)
-			utils.CheckError(err)
-
-			if user.sessionForTunnel == nil {
-				fmt.Println("tunnel is not conneted")
-				continue
-			}
-
-			user.sessionForTunnel.send <- recv[:n]
-
-			fmt.Println("recv data from inner, len is", n)
-		}
-	}()
+	user := NewUser(userID, conn)
+	AddUser(user) // add user to cache
+	user.Run()
 }
 
 func runForTunnelClient(host string, port int, innerPort int) {
@@ -47,22 +30,45 @@ func runForTunnelClient(host string, port int, innerPort int) {
 	utils.CheckError(err)
 	defer conn.Close()
 
-	user.sessionForTunnel = NewSession(conn)
-	go user.sessionForTunnel.SendLoop()
+	sessionForTunnel = NewSession(conn)
+	go sessionForTunnel.sendLoop()
 
 	for {
-		recv := make([]byte, comm.RecvBuffSize)
-		n, err := conn.Read(recv)
-		utils.CheckError(err)
-
-		// 如果收到数据，连接内网指定端口，打通通道
-		if user.sessionForInner == nil {
-			runForInnerClient(innerPort)
+		// read pakcet len
+		headerLen, err := utils.ReadInt32(conn)
+		if err != nil {
+			conn.Close()
+			break
 		}
 
-		// 写入接收到的数据到本地端口
-		user.sessionForInner.send <- recv[:n]
+		// read packet data
+		bs := make([]byte, headerLen)
+		_, err = io.ReadFull(conn, bs)
+		if err != nil {
+			conn.Close()
+			break
+		}
+		pkg := comm.Decode(bs)
 
-		fmt.Println("recv data from tunnel, len is", n)
+		switch pkg.CmdID {
+		case comm.Cmd_Connect:
+			runForInnerClient(pkg.UserID, innerPort)
+		case comm.Cmd_Data:
+			user := FindUser(pkg.UserID)
+			if user != nil {
+				user.session.SendData(pkg.Data)
+			} else {
+				fmt.Println("Cmd_Data not found user", pkg.UserID)
+			}
+		case comm.Cmd_Close:
+			user := FindUser(pkg.UserID)
+			if user != nil {
+				user.Disconnect()
+			} else {
+				fmt.Println("Cmd_Close not found user", pkg.UserID)
+			}
+		}
+
+		fmt.Println("recv data from tunnel, len is", pkg.Len())
 	}
 }
