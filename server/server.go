@@ -48,6 +48,8 @@ func runForTunnel(port int) {
 		sessionForTunnel = NewSession(conn)
 		go sessionForTunnel.sendLoop()
 
+		fmt.Println("client connect tunnel success!")
+
 		for {
 			// read pakcet len
 			headerLen, err := utils.ReadInt32(conn)
