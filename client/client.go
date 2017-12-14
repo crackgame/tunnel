@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"tunnel/comm"
 	"tunnel/utils"
@@ -34,21 +33,12 @@ func runForTunnelClient(host string, port int, innerPort int) {
 	go sessionForTunnel.sendLoop()
 
 	for {
-		// read pakcet len
-		headerLen, err := utils.ReadInt32(conn)
+		// read packect
+		pkg, err := DecodePacket(conn)
 		if err != nil {
 			conn.Close()
 			break
 		}
-
-		// read packet data
-		bs := make([]byte, headerLen)
-		_, err = io.ReadFull(conn, bs)
-		if err != nil {
-			conn.Close()
-			break
-		}
-		pkg := comm.Decode(bs)
 
 		fmt.Println("tunnel recv packet", pkg)
 
