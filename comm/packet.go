@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"tunnel/comm"
 	"tunnel/utils"
 )
 
@@ -84,6 +83,6 @@ func DecodePacket(conn net.Conn) (*Packet, error) {
 	if err != nil {
 		return nil, err
 	}
-	pkg := comm.Decode(bs)
+	pkg := Decode(bs)
 	return pkg, nil
 }

@@ -34,7 +34,7 @@ func runForTunnelClient(host string, port int, innerPort int) {
 
 	for {
 		// read packect
-		pkg, err := DecodePacket(conn)
+		pkg, err := comm.DecodePacket(conn)
 		if err != nil {
 			conn.Close()
 			break
