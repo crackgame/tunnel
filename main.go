@@ -24,9 +24,6 @@ func main() {
 	// 	return
 	// }
 
-	test := 1
-	_ = test
-
 	if *Mode == "s" {
 		fmt.Println("run as server")
 		server.Run(*UserPort, *TunnelPort)
